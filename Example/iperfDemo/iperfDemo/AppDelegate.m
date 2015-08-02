@@ -46,33 +46,31 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     
-    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"iperf3"];
-    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
-    char buf[PATH_MAX];
-    [path getCString:buf maxLength:PATH_MAX encoding:NSASCIIStringEncoding];
-    
-    // Override point for customization after application launch.
-    struct iperf_test *test = iperf_new_test();
-    if (!test) {
-        iperf_errexit(NULL, "create new test error - %s", iperf_strerror(i_errno));
-    }
-    
-    iperf_defaults(test);
-    iperf_set_verbose(test, 1);
-    iperf_set_test_role(test, 'c');
-    iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
-    iperf_set_test_tmp_path(test, buf);
-    
-    if (run(test) < 0) {
-        iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
-    }
-    
-    iperf_free_test(test);
-    
-    UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
-    UINavigationController *navigationController = [splitViewController.viewControllers lastObject];
-    navigationController.topViewController.navigationItem.leftBarButtonItem = splitViewController.displayModeButtonItem;
-    splitViewController.delegate = self;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"iperf3"];
+        NSError *error = nil;
+        [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error];
+        char buf[PATH_MAX];
+        [path getCString:buf maxLength:PATH_MAX encoding:NSASCIIStringEncoding];
+        
+        // Override point for customization after application launch.
+        struct iperf_test *test = iperf_new_test();
+        if (!test) {
+            iperf_errexit(NULL, "create new test error - %s", iperf_strerror(i_errno));
+        }
+        
+        iperf_defaults(test);
+        iperf_set_verbose(test, 1);
+        iperf_set_test_role(test, 'c');
+        iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
+        iperf_set_test_tmp_path(test, buf);
+        
+        if (run(test) < 0) {
+            iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
+        }
+        
+        iperf_free_test(test);
+    });
     return YES;
 }
 
