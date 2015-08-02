@@ -45,6 +45,15 @@
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    
+    NSString * path = [NSTemporaryDirectory() stringByAppendingPathComponent: @"Quatermain"];
+    [[NSFileManager defaultManager] createDirectoryAtPath: path attributes: nil];
+    
+    char buf[PATH_MAX];
+    [path getCString: buf maxLength: PATH_MAX encoding: NSASCIIStringEncoding];
+    strlcat( buf, "/tmp.XXXXXX", PATH_MAX );
+    
+    
     // Override point for customization after application launch.
     struct iperf_test *test = iperf_new_test();
     if (!test) {

@@ -1,5 +1,5 @@
 /*
- * iperf, Copyright (c) 2014, The Regents of the University of
+ * iperf, Copyright (c) 2014, 2015, The Regents of the University of
  * California, through Lawrence Berkeley National Laboratory (subject
  * to receipt of any required approvals from the U.S. Dept. of
  * Energy).  All rights reserved.
@@ -210,6 +210,12 @@ iperf_get_test_server_hostname(struct iperf_test *ipt)
     return ipt->server_hostname;
 }
 
+char*
+iperf_get_test_tmp_path(struct iperf_test *ipt)
+{
+    return ipt->tmp_path;
+}
+
 int
 iperf_get_test_protocol_id(struct iperf_test *ipt)
 {
@@ -371,6 +377,13 @@ iperf_set_test_server_hostname(struct iperf_test *ipt, char *server_hostname)
 {
     ipt->server_hostname = strdup(server_hostname);
 }
+
+void
+iperf_set_test_tmp_path(struct iperf_test *ipt, char *tmp_path)
+{
+    ipt->tmp_path = strdup(tmp_path);
+}
+
 
 void
 iperf_set_test_reverse(struct iperf_test *ipt, int reverse)
@@ -1869,6 +1882,8 @@ iperf_free_test(struct iperf_test *test)
 
     if (test->server_hostname)
 	free(test->server_hostname);
+    if (test->tmp_path)
+    free(test->tmp_path);
     if (test->bind_address)
 	free(test->bind_address);
     if (!TAILQ_EMPTY(&test->xbind_addrs)) {
@@ -2451,6 +2466,7 @@ iperf_reporter_callback(struct iperf_test *test)
             /* print interval results for each stream */
             iperf_print_intermediate(test);
             break;
+        case TEST_END:
         case DISPLAY_RESULTS:
             iperf_print_intermediate(test);
             iperf_print_results(test);
@@ -2541,6 +2557,9 @@ print_interval_results(struct iperf_test *test, struct iperf_stream *sp, cJSON *
 		iprintf(test, report_bw_udp_format, sp->socket, st, et, ubuf, nbuf, irp->jitter * 1000.0, irp->interval_cnt_error, irp->interval_packet_count, lost_percent, irp->omitted?report_omitted:"");
 	}
     }
+
+    if (test->logfile)
+        iflush(test);
 }
 
 /**************************************************************************/
