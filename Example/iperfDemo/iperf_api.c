@@ -384,7 +384,6 @@ iperf_set_test_tmp_path(struct iperf_test *ipt, char *tmp_path)
     ipt->tmp_path = strdup(tmp_path);
 }
 
-
 void
 iperf_set_test_reverse(struct iperf_test *ipt, int reverse)
 {
@@ -2589,7 +2588,13 @@ iperf_new_stream(struct iperf_test *test, int s)
 {
     int i;
     struct iperf_stream *sp;
-    char template[] = "/tmp/iperf3.XXXXXX";
+    
+    char template[1024];
+    if (test->tmp_path) {
+        strcpy(template, strcat(test->tmp_path, "/iperf3.XXXXXX"));
+    } else {
+        strcpy(template, "/tmp/iperf3.XXXXXX");
+    }
 
     h_errno = 0;
 

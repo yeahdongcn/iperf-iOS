@@ -46,13 +46,10 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     
-    NSString * path = [NSTemporaryDirectory() stringByAppendingPathComponent: @"Quatermain"];
-    [[NSFileManager defaultManager] createDirectoryAtPath: path attributes: nil];
-    
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"iperf3"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
     char buf[PATH_MAX];
-    [path getCString: buf maxLength: PATH_MAX encoding: NSASCIIStringEncoding];
-    strlcat( buf, "/tmp.XXXXXX", PATH_MAX );
-    
+    [path getCString:buf maxLength:PATH_MAX encoding:NSASCIIStringEncoding];
     
     // Override point for customization after application launch.
     struct iperf_test *test = iperf_new_test();
@@ -64,6 +61,7 @@
     iperf_set_verbose(test, 1);
     iperf_set_test_role(test, 'c');
     iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
+    iperf_set_test_tmp_path(test, buf);
     
     if (run(test) < 0) {
         iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
