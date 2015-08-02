@@ -53,7 +53,8 @@
     
     iperf_defaults(test);
     iperf_set_verbose(test, 1);
-    iperf_set_test_role(test, 's');
+    iperf_set_test_role(test, 'c');
+    iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
     
     if (run(test) < 0) {
         iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
