@@ -113,7 +113,7 @@
 		D00D028D1ACA7CE200386C71 = {
 			isa = PBXGroup;
 			children = (
-				D00D02C21ACA7D5E00386C71 /* iperf */,
+				D00D02C21ACA7D5E00386C71 /* iperf3 */,
 				D00D02981ACA7CE300386C71 /* iperfDemo */,
 				D00D02B51ACA7CE300386C71 /* iperfDemoTests */,
 				D00D02971ACA7CE300386C71 /* Products */,
@@ -172,7 +172,7 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		D00D02C21ACA7D5E00386C71 /* iperf */ = {
+		D00D02C21ACA7D5E00386C71 /* iperf3 */ = {
 			isa = PBXGroup;
 			children = (
 				D00D02C31ACA7D7200386C71 /* iperf_config.h */,
@@ -208,7 +208,7 @@
 				D00D02E11ACA7D7200386C71 /* units.c */,
 				D00D02E21ACA7D7200386C71 /* units.h */,
 			);
-			name = iperf;
+			name = iperf3;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
