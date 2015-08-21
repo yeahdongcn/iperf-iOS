@@ -46,29 +46,37 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"iperf3"];
-        NSError *error = nil;
-        [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"iperf3.XXXXXX"];
         char buf[PATH_MAX];
-        [path getCString:buf maxLength:PATH_MAX encoding:NSASCIIStringEncoding];
+        [path getCString:buf maxLength:PATH_MAX encoding:NSUTF8StringEncoding];
         
-        // Override point for customization after application launch.
         struct iperf_test *test = iperf_new_test();
+        char *error = NULL;
         if (!test) {
-            iperf_errexit(NULL, "create new test error - %s", iperf_strerror(i_errno));
+            error = iperf_strerror(i_errno);
+            iperf_err(NULL, "create new test error - %s", error);
         }
         
         iperf_defaults(test);
         iperf_set_verbose(test, 1);
         iperf_set_test_role(test, 'c');
+        // Switch the iPerf3 server from https://iperf.fr/iperf-servers.php
         iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
-        iperf_set_test_tmp_path(test, buf);
+        iperf_set_test_server_port(test, 5201);
+        iperf_set_test_template(test, buf);
+        // Comment out this line to see to realtime log
+        iperf_set_test_json_output(test, 1);
         
-        if (run(test) < 0) {
-            iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
+        if (iperf_run_client(test) < 0) {
+            error = iperf_strerror(i_errno);
+            iperf_err(test, "error - %s", error);
         }
         
+        NSString *output = nil;
+        if (iperf_get_test_json_output_string(test)) {
+            output = @(iperf_get_test_json_output_string(test));
+        }
         iperf_free_test(test);
     });
     return YES;
@@ -105,55 +113,6 @@
     } else {
         return NO;
     }
-}
-
-/**************************************************************************/
-static int
-run(struct iperf_test *test)
-{
-    int consecutive_errors;
-    
-    switch (test->role) {
-        case 's':
-            if (test->daemon) {
-                int rc = daemon(0, 0);
-                if (rc < 0) {
-                    i_errno = IEDAEMON;
-                    iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
-                }
-            }
-            consecutive_errors = 0;
-            if (iperf_create_pidfile(test) < 0) {
-                i_errno = IEPIDFILE;
-                iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
-            }
-            for (;;) {
-                if (iperf_run_server(test) < 0) {
-                    iperf_err(test, "error - %s", iperf_strerror(i_errno));
-                    fprintf(stderr, "\n");
-                    ++consecutive_errors;
-                    if (consecutive_errors >= 5) {
-                        fprintf(stderr, "too many errors, exiting\n");
-                        break;
-                    }
-                } else
-                    consecutive_errors = 0;
-                iperf_reset_test(test);
-                if (iperf_get_test_one_off(test))
-                    break;
-            }
-            iperf_delete_pidfile(test);
-            break;
-        case 'c':
-            if (iperf_run_client(test) < 0)
-                iperf_errexit(test, "error - %s", iperf_strerror(i_errno));
-            break;
-        default:
-            usage();
-            break;
-    }
-    
-    return 0;
 }
 
 @end

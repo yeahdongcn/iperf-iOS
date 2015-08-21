@@ -1,5 +1,5 @@
 /*
- * iperf, Copyright (c) 2014, The Regents of the University of
+ * iperf, Copyright (c) 2014, 2015, The Regents of the University of
  * California, through Lawrence Berkeley National Laboratory (subject
  * to receipt of any required approvals from the U.S. Dept. of
  * Energy).  All rights reserved.
@@ -210,6 +210,12 @@ iperf_get_test_server_hostname(struct iperf_test *ipt)
     return ipt->server_hostname;
 }
 
+char*
+iperf_get_test_template(struct iperf_test *ipt)
+{
+    return ipt->template;
+}
+
 int
 iperf_get_test_protocol_id(struct iperf_test *ipt)
 {
@@ -370,6 +376,12 @@ void
 iperf_set_test_server_hostname(struct iperf_test *ipt, char *server_hostname)
 {
     ipt->server_hostname = strdup(server_hostname);
+}
+
+void
+iperf_set_test_template(struct iperf_test *ipt, char *template)
+{
+    ipt->template = strdup(template);
 }
 
 void
@@ -1869,6 +1881,8 @@ iperf_free_test(struct iperf_test *test)
 
     if (test->server_hostname)
 	free(test->server_hostname);
+    if (test->template)
+    free(test->template);
     if (test->bind_address)
 	free(test->bind_address);
     if (!TAILQ_EMPTY(&test->xbind_addrs)) {
@@ -1883,6 +1897,7 @@ iperf_free_test(struct iperf_test *test)
             free(xbe);
         }
     }
+    if (test->settings)
     free(test->settings);
     if (test->title)
 	free(test->title);
@@ -2451,6 +2466,7 @@ iperf_reporter_callback(struct iperf_test *test)
             /* print interval results for each stream */
             iperf_print_intermediate(test);
             break;
+        case TEST_END:
         case DISPLAY_RESULTS:
             iperf_print_intermediate(test);
             iperf_print_results(test);
@@ -2541,6 +2557,9 @@ print_interval_results(struct iperf_test *test, struct iperf_stream *sp, cJSON *
 		iprintf(test, report_bw_udp_format, sp->socket, st, et, ubuf, nbuf, irp->jitter * 1000.0, irp->interval_cnt_error, irp->interval_packet_count, lost_percent, irp->omitted?report_omitted:"");
 	}
     }
+
+    if (test->logfile)
+        iflush(test);
 }
 
 /**************************************************************************/
@@ -2570,7 +2589,14 @@ iperf_new_stream(struct iperf_test *test, int s)
 {
     int i;
     struct iperf_stream *sp;
-    char template[] = "/tmp/iperf3.XXXXXX";
+    
+    char template[1024];
+    if (test->template) {
+        snprintf(template, strlen(test->template), "%s", test->template);
+    } else {
+        char buf[] = "/tmp/iperf3.XXXXXX";
+        snprintf(template, strlen(buf), "%s", buf);
+    }
 
     h_errno = 0;
 
