@@ -65,6 +65,7 @@
         iperf_set_test_server_hostname(test, "iperf.scottlinux.com");
         iperf_set_test_server_port(test, 5201);
         iperf_set_test_template(test, buf);
+//        iperf_set_test_authentication(test, "authentication");
         // Comment out this line to see to realtime log
         iperf_set_test_json_output(test, 1);
         
