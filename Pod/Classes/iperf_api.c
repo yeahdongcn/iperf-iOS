@@ -213,7 +213,7 @@ iperf_get_test_server_hostname(struct iperf_test *ipt)
 char*
 iperf_get_test_template(struct iperf_test *ipt)
 {
-    return ipt->template;
+    return ipt->tmp_template;
 }
 
 int
@@ -379,9 +379,9 @@ iperf_set_test_server_hostname(struct iperf_test *ipt, char *server_hostname)
 }
 
 void
-iperf_set_test_template(struct iperf_test *ipt, char *template)
+iperf_set_test_template(struct iperf_test *ipt, char *tmp_template)
 {
-    ipt->template = strdup(template);
+    ipt->tmp_template = strdup(tmp_template);
 }
 
 void
@@ -662,6 +662,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
     int flag;
     int blksize;
     int server_flag, client_flag, rate_flag, duration_flag;
+    char *endptr;
 #if defined(HAVE_CPU_AFFINITY)
     char* comma;
 #endif /* HAVE_CPU_AFFINITY */
@@ -825,13 +826,20 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 test->settings->domain = AF_INET6;
                 break;
             case 'S':
-                test->settings->tos = strtol(optarg, NULL, 0);
+                test->settings->tos = strtol(optarg, &endptr, 0);
+		if (endptr == optarg ||
+		    test->settings->tos < 0 ||
+		    test->settings->tos > 255) {
+		    i_errno = IEBADTOS;
+		    return -1;
+		}
 		client_flag = 1;
                 break;
             case 'L':
 #if defined(HAVE_FLOWLABEL)
-                test->settings->flowlabel = strtol(optarg, NULL, 0);
-		if (test->settings->flowlabel < 1 || test->settings->flowlabel > 0xfffff) {
+                test->settings->flowlabel = strtol(optarg, &endptr, 0);
+		if (endptr == optarg ||
+		    test->settings->flowlabel < 1 || test->settings->flowlabel > 0xfffff) {
                     i_errno = IESETFLOW;
                     return -1;
 		}
@@ -876,8 +884,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 break;
             case 'A':
 #if defined(HAVE_CPU_AFFINITY)
-                test->affinity = atoi(optarg);
-                if (test->affinity < 0 || test->affinity > 1024) {
+                test->affinity = strtol(optarg, &endptr, 0);
+                if (endptr == optarg || 
+		    test->affinity < 0 || test->affinity > 1024) {
                     i_errno = IEAFFINITY;
                     return -1;
                 }
@@ -1881,8 +1890,8 @@ iperf_free_test(struct iperf_test *test)
 
     if (test->server_hostname)
 	free(test->server_hostname);
-    if (test->template)
-    free(test->template);
+    if (test->tmp_template)
+	free(test->tmp_template);
     if (test->bind_address)
 	free(test->bind_address);
     if (!TAILQ_EMPTY(&test->xbind_addrs)) {
@@ -2340,13 +2349,13 @@ iperf_print_results(struct iperf_test *test)
 	    /* Summary, UDP. */
 	    lost_percent = 100.0 * sp->cnt_error / (sp->packet_count - sp->omitted_packet_count);
 	    if (test->json_output)
-		cJSON_AddItemToObject(json_summary_stream, "udp", iperf_json_printf("socket: %d  start: %f  end: %f  seconds: %f  bytes: %d  bits_per_second: %f  jitter_ms: %f  lost_packets: %d  packets: %d  lost_percent: %f", (int64_t) sp->socket, (double) start_time, (double) end_time, (double) end_time, (int64_t) bytes_sent, bandwidth * 8, (double) sp->jitter * 1000.0, (int64_t) sp->cnt_error, (int64_t) (sp->packet_count - sp->omitted_packet_count), (double) lost_percent));
+		cJSON_AddItemToObject(json_summary_stream, "udp", iperf_json_printf("socket: %d  start: %f  end: %f  seconds: %f  bytes: %d  bits_per_second: %f  jitter_ms: %f  lost_packets: %d  packets: %d  lost_percent: %f  out_of_order: %d", (int64_t) sp->socket, (double) start_time, (double) end_time, (double) end_time, (int64_t) bytes_sent, bandwidth * 8, (double) sp->jitter * 1000.0, (int64_t) sp->cnt_error, (int64_t) (sp->packet_count - sp->omitted_packet_count), (double) lost_percent, (int64_t) sp->outoforder_packets));
 	    else {
 		iprintf(test, report_bw_udp_format, sp->socket, start_time, end_time, ubuf, nbuf, sp->jitter * 1000.0, sp->cnt_error, (sp->packet_count - sp->omitted_packet_count), lost_percent, "");
 		if (test->role == 'c')
 		    iprintf(test, report_datagrams, sp->socket, (sp->packet_count - sp->omitted_packet_count));
 		if (sp->outoforder_packets > 0)
-		    iprintf(test, report_sum_outoforder, start_time, end_time, sp->cnt_error);
+		    iprintf(test, report_sum_outoforder, start_time, end_time, sp->outoforder_packets);
 	    }
 	}
 
@@ -2591,11 +2600,11 @@ iperf_new_stream(struct iperf_test *test, int s)
     struct iperf_stream *sp;
     
     char template[1024];
-    if (test->template) {
-        snprintf(template, strlen(test->template), "%s", test->template);
+    if (test->tmp_template) {
+        snprintf(template, sizeof(template) / sizeof(char), "%s", test->tmp_template);
     } else {
         char buf[] = "/tmp/iperf3.XXXXXX";
-        snprintf(template, strlen(buf), "%s", buf);
+        snprintf(template, sizeof(template) / sizeof(char), "%s", buf);
     }
 
     h_errno = 0;
@@ -2865,8 +2874,6 @@ iperf_json_start(struct iperf_test *test)
     test->json_top = cJSON_CreateObject();
     if (test->json_top == NULL)
         return -1;
-    if (test->title)
-	cJSON_AddStringToObject(test->json_top, "title", test->title);
     test->json_start = cJSON_CreateObject();
     if (test->json_start == NULL)
         return -1;
@@ -2889,6 +2896,8 @@ iperf_json_start(struct iperf_test *test)
 int
 iperf_json_finish(struct iperf_test *test)
 {
+    if (test->title)
+	cJSON_AddStringToObject(test->json_top, "title", test->title);
     /* Include server output */
     if (test->json_server_output) {
 	cJSON_AddItemToObject(test->json_top, "server_output_json", test->json_server_output);
