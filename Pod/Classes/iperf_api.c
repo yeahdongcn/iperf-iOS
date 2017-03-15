@@ -1853,8 +1853,11 @@ iperf_defaults(struct iperf_test *testp)
     //SLIST_INSERT_AFTER(tcp, udp, protocols);
     SLIST_INSERT_HEAD(&testp->protocols, udp, protocols);
 
-    set_protocol(testp, Ptcp);
-
+    // modified: sotosuzuki
+    // セットする情報をUDPの情報に変更
+    //set_protocol(testp, Ptcp);
+    set_protocol(testp, Pudp);
+    
 #if defined(HAVE_SCTP)
     sctp = protocol_new();
     if (!sctp) {
