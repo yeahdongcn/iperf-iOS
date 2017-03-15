@@ -1797,7 +1797,11 @@ iperf_defaults(struct iperf_test *testp)
     testp->settings->domain = AF_UNSPEC;
     testp->settings->unit_format = 'a';
     testp->settings->socket_bufsize = 0;    /* use autotuning */
-    testp->settings->blksize = DEFAULT_TCP_BLKSIZE;
+    
+    // modified: sotosuzuki
+    // TCP_BLKSIZEをUDP_BLKSIZEに変更
+    //testp->settings->blksize = DEFAULT_TCP_BLKSIZE;
+    testp->settings->blksize = DEFAULT_UDP_BLKSIZE;
     testp->settings->rate = 0;
     testp->settings->burst = 0;
     testp->settings->mss = 0;
@@ -1810,7 +1814,10 @@ iperf_defaults(struct iperf_test *testp)
     /* Set up protocol list */
     SLIST_INIT(&testp->streams);
     SLIST_INIT(&testp->protocols);
-
+    
+    // modified: sotosuzuki
+    // tcpの情報をコメントアウト
+    /*
     tcp = protocol_new();
     if (!tcp)
         return -1;
@@ -1824,7 +1831,8 @@ iperf_defaults(struct iperf_test *testp)
     tcp->recv = iperf_tcp_recv;
     tcp->init = NULL;
     SLIST_INSERT_HEAD(&testp->protocols, tcp, protocols);
-
+    */
+    
     udp = protocol_new();
     if (!udp) {
         protocol_free(tcp);
@@ -1839,10 +1847,17 @@ iperf_defaults(struct iperf_test *testp)
     udp->send = iperf_udp_send;
     udp->recv = iperf_udp_recv;
     udp->init = iperf_udp_init;
-    SLIST_INSERT_AFTER(tcp, udp, protocols);
+    
+    // modified: sotosuzuki
+    // リストの先頭にUDPの情報を入れるように変更
+    //SLIST_INSERT_AFTER(tcp, udp, protocols);
+    SLIST_INSERT_HEAD(&testp->protocols, udp, protocols);
 
-    set_protocol(testp, Ptcp);
-
+    // modified: sotosuzuki
+    // セットする情報をUDPの情報に変更
+    //set_protocol(testp, Ptcp);
+    set_protocol(testp, Pudp);
+    
 #if defined(HAVE_SCTP)
     sctp = protocol_new();
     if (!sctp) {
